@@ -82,6 +82,23 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
+      // Check if stock with this symbol already exists
+      const { data: existingStock } = await supabase
+        .from('stocks')
+        .select('symbol')
+        .eq('symbol', stock.symbol)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (existingStock) {
+        toast({
+          title: "Error",
+          description: `Stock ${stock.symbol} is already in your watchlist`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('stocks')
         .insert([
@@ -98,9 +115,11 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (error) {
         console.error('Error adding stock:', error);
+        // Show the actual database error message
+        const errorMessage = error.message || "Failed to add stock to database";
         toast({
-          title: "Error",
-          description: "Failed to add stock to database",
+          title: "Database Error",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -115,6 +134,11 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await fetchStocks();
     } catch (error) {
       console.error('Exception adding stock:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
 
