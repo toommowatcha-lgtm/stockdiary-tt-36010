@@ -35,7 +35,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchStocks = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('stocks')
         .select('*')
         .order('created_at', { ascending: false });
@@ -82,24 +82,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      // Check if stock with this symbol already exists
-      const { data: existingStock } = await supabase
-        .from('stocks')
-        .select('symbol')
-        .eq('symbol', stock.symbol)
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      if (existingStock) {
-        toast({
-          title: "Error",
-          description: `Stock ${stock.symbol} is already in your watchlist`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('stocks')
         .insert([
           {
@@ -115,13 +98,21 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (error) {
         console.error('Error adding stock:', error);
-        // Show the actual database error message
-        const errorMessage = error.message || "Failed to add stock to database";
-        toast({
-          title: "Database Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        
+        // Handle duplicate stock symbol error specifically
+        if (error.code === '23505') {
+          toast({
+            title: "Stock Already Exists",
+            description: `${stock.symbol} is already in your watchlist`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to add stock to database",
+            variant: "destructive",
+          });
+        }
         return;
       }
 
@@ -134,11 +125,6 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await fetchStocks();
     } catch (error) {
       console.error('Exception adding stock:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive",
-      });
     }
   };
 
@@ -152,7 +138,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (updatedData.companyName) updatePayload.name = updatedData.companyName;
       if (updatedData.currentPrice !== undefined) updatePayload.price = updatedData.currentPrice;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('stocks')
         .update(updatePayload)
         .eq('id', id);
@@ -204,14 +190,14 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await (supabase as any)
         .from('business_overviews')
         .delete()
         .eq('stock_symbol', symbol);
 
       if (deleteError) console.error('Error deleting old business overview:', deleteError);
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('business_overviews')
         .insert([
           {
@@ -239,7 +225,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await (supabase as any)
         .from('financials')
         .delete()
         .eq('stock_symbol', symbol);
@@ -256,7 +242,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         user_id: session.user.id,
       }));
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('financials')
         .insert(financialRows);
 
@@ -274,7 +260,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('business_overviews')
         .upsert([
           {
@@ -298,7 +284,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('business_overviews')
         .upsert([
           {
@@ -322,7 +308,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await (supabase as any)
         .from('risks')
         .delete()
         .eq('stock_symbol', symbol);
@@ -336,7 +322,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         { stock_symbol: symbol, type: 'macro', description: riskData.macroRisks || '', user_id: session.user.id },
       ];
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('risks')
         .insert(riskRows);
 
@@ -356,11 +342,11 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!stock) return;
 
       // Delete related data first
-      await supabase.from('business_overviews').delete().eq('stock_symbol', stock.symbol);
-      await supabase.from('financials').delete().eq('stock_symbol', stock.symbol);
-      await supabase.from('risks').delete().eq('stock_symbol', stock.symbol);
+      await (supabase as any).from('business_overviews').delete().eq('stock_symbol', stock.symbol);
+      await (supabase as any).from('financials').delete().eq('stock_symbol', stock.symbol);
+      await (supabase as any).from('risks').delete().eq('stock_symbol', stock.symbol);
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('stocks')
         .delete()
         .eq('id', id);
