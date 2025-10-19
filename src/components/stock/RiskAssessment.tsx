@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
 import { Stock } from "@/types/stock";
 import { useStocks } from "@/contexts/StockContext";
+import { useAutoSave } from "@/hooks/use-auto-save";
 
 interface RiskAssessmentProps {
   stock: Stock;
@@ -22,26 +22,24 @@ export const RiskAssessment: React.FC<RiskAssessmentProps> = ({ stock }) => {
     macroRisks: stock.riskAssessment?.macroRisks || "",
   });
 
-  const handleSave = () => {
-    updateStock(stock.id, {
-      riskAssessment: riskData,
-    });
-    setEditing(false);
-  };
+  // Auto-save functionality
+  useAutoSave({
+    data: { riskAssessment: riskData },
+    onSave: async (data) => {
+      await updateStock(stock.id, data);
+    },
+    enabled: editing,
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        {editing ? (
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" />
-            Save Changes
-          </Button>
-        ) : (
-          <Button onClick={() => setEditing(true)} variant="outline">
-            Edit
-          </Button>
-        )}
+        <Button 
+          onClick={() => setEditing(!editing)} 
+          variant={editing ? "default" : "outline"}
+        >
+          {editing ? "Done Editing" : "Edit"}
+        </Button>
       </div>
 
       <div className="grid gap-6">

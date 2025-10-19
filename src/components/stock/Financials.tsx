@@ -4,7 +4,8 @@ import { Stock, FinancialData, CustomMetric } from "@/types/stock";
 import { useStocks } from "@/contexts/StockContext";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, TrendingUp, TrendingDown, X, Download } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, X, Download } from "lucide-react";
+import { useAutoSave } from "@/hooks/use-auto-save";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sortPeriods } from "@/lib/periodSort";
@@ -121,10 +122,14 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
     return { revenueGrowth, netProfitMargin, fcfMargin };
   }, [displayData]);
 
-  const handleSave = () => {
-    updateStock(stock.id, { financials, customMetrics });
-    setEditing(false);
-  };
+  // Auto-save functionality
+  useAutoSave({
+    data: { financials, customMetrics },
+    onSave: async (data) => {
+      await updateStock(stock.id, data);
+    },
+    enabled: editing && viewMode === "quarterly",
+  });
 
   const addPeriod = () => {
     const quarters = financials.filter(f => f.period.startsWith("Q"));
@@ -254,16 +259,12 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
               Add Period
             </Button>
           )}
-          {editing ? (
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
-          ) : (
-            <Button onClick={() => setEditing(true)} variant="outline">
-              Edit
-            </Button>
-          )}
+          <Button 
+            onClick={() => setEditing(!editing)} 
+            variant={editing ? "default" : "outline"}
+          >
+            {editing ? "Done Editing" : "Edit"}
+          </Button>
         </div>
       </div>
 

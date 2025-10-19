@@ -5,8 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Stock, QuarterlyNote } from "@/types/stock";
 import { useStocks } from "@/contexts/StockContext";
 import { Button } from "@/components/ui/button";
-import { Save, TrendingUp, Minus, TrendingDown, Bold, Italic, List, Plus } from "lucide-react";
+import { TrendingUp, Minus, TrendingDown, Bold, Italic, List, Plus } from "lucide-react";
 import { sortPeriods } from "@/lib/periodSort";
+import { useAutoSave } from "@/hooks/use-auto-save";
 import {
   Select,
   SelectContent,
@@ -64,15 +65,14 @@ export const Story: React.FC<StoryProps> = ({ stock }) => {
     });
   };
 
-  const handleSave = () => {
-    // Sort quarters chronologically before saving
-    const sortedStory = {
-      ...story,
-      quarters: sortPeriods(story.quarters, 'quarter')
-    };
-    updateStock(stock.id, { story: sortedStory });
-    setEditing(false);
-  };
+  // Auto-save functionality
+  useAutoSave({
+    data: { story: { ...story, quarters: sortPeriods(story.quarters, 'quarter') } },
+    onSave: async (data) => {
+      await updateStock(stock.id, data);
+    },
+    enabled: editing,
+  });
 
   // Sort quarters chronologically for display
   const sortedQuarters = useMemo(() => 
@@ -134,16 +134,12 @@ export const Story: React.FC<StoryProps> = ({ stock }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        {editing ? (
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" />
-            Save
-          </Button>
-        ) : (
-          <Button onClick={() => setEditing(true)} variant="outline">
-            Edit
-          </Button>
-        )}
+        <Button 
+          onClick={() => setEditing(!editing)} 
+          variant={editing ? "default" : "outline"}
+        >
+          {editing ? "Done Editing" : "Edit"}
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

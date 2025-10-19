@@ -6,9 +6,10 @@ import { Stock } from "@/types/stock";
 import { useStocks } from "@/contexts/StockContext";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Button } from "@/components/ui/button";
-import { Plus, Save } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useAutoSave } from "@/hooks/use-auto-save";
 
 const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
@@ -52,15 +53,14 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({ stock }) => 
 
   const [tippingPoint, setTippingPoint] = useState(stock.tippingPoint || "");
 
-  const handleSave = () => {
-    updateStock(stock.id, {
-      businessOverview: businessData,
-      tam,
-      thinkForMarket,
-      tippingPoint,
-    });
-    setEditing(false);
-  };
+  // Auto-save functionality
+  useAutoSave({
+    data: { businessOverview: businessData, tam, thinkForMarket, tippingPoint },
+    onSave: async (data) => {
+      await updateStock(stock.id, data);
+    },
+    enabled: editing,
+  });
 
   const addRevenueSegment = () => {
     setBusinessData({
@@ -75,16 +75,12 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({ stock }) => 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        {editing ? (
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" />
-            Save Changes
-          </Button>
-        ) : (
-          <Button onClick={() => setEditing(true)} variant="outline">
-            Edit
-          </Button>
-        )}
+        <Button 
+          onClick={() => setEditing(!editing)} 
+          variant={editing ? "default" : "outline"}
+        >
+          {editing ? "Done Editing" : "Edit"}
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
