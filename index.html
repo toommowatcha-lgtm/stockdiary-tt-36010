@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#111827">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.error('❌ SW failed:', err));
+    });
+  }
+</script>
+ <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Stock Dashboard - Track & Analyze Your Investments</title>
+    <meta name="description" content="Modern stock analysis dashboard for tracking, comparing, and evaluating your investment portfolio with financial data visualization." />
+    <meta name="author" content="Lovable" />
+
+    <meta property="og:title" content="AI Stock Dashboard - Investment Analysis" />
+    <meta property="og:description" content="Track and analyze stocks with comprehensive financial data and interactive visualizations." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
