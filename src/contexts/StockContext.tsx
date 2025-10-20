@@ -35,13 +35,13 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchStocks = async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data: stocksData, error: stocksError } = await (supabase as any)
         .from('stocks')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching stocks:', error);
+      if (stocksError) {
+        console.error('Error fetching stocks:', stocksError);
         toast({
           title: "Error",
           description: "Failed to load stocks from database",
@@ -50,16 +50,152 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
-      console.log('Fetched stocks:', data);
-      
+      if (!stocksData || stocksData.length === 0) {
+        setStocks([]);
+        return;
+      }
+
+      // Fetch all related data for each stock
+      const symbols = stocksData.map((s: any) => s.symbol);
+
+      const [businessData, financialsData, risksData] = await Promise.all([
+        (supabase as any).from('business_overviews').select('*').in('stock_symbol', symbols),
+        (supabase as any).from('financials').select('*').in('stock_symbol', symbols),
+        (supabase as any).from('risks').select('*').in('stock_symbol', symbols),
+      ]);
+
+      console.log('Fetched stocks:', stocksData);
+      console.log('Fetched business data:', businessData.data);
+      console.log('Fetched financials:', financialsData.data);
+      console.log('Fetched risks:', risksData.data);
+
       // Transform Supabase data to Stock type
-      const transformedStocks: Stock[] = (data || []).map((row: any) => ({
-        id: row.id,
-        symbol: row.symbol,
-        companyName: row.name,
-        currentPrice: row.price || 0,
-        dayChange: 0, // Not stored in DB, could be calculated or fetched separately
-      }));
+      const transformedStocks: Stock[] = stocksData.map((row: any) => {
+        const businessOverview = businessData.data?.find((b: any) => b.stock_symbol === row.symbol);
+        const financials = financialsData.data?.filter((f: any) => f.stock_symbol === row.symbol) || [];
+        const risks = risksData.data?.filter((r: any) => r.stock_symbol === row.symbol) || [];
+
+        // Parse TAM data if exists
+        let tamData: any = null;
+        let valuationData: any = null;
+        if (businessOverview?.tam) {
+          try {
+            tamData = JSON.parse(businessOverview.tam);
+            valuationData = tamData.valuation;
+            // Keep only TAM fields in tamData
+            if (tamData.tam !== undefined) {
+              tamData = { tam: tamData.tam, sam: tamData.sam, som: tamData.som };
+            }
+          } catch (e) {
+            console.error('Error parsing TAM data:', e);
+          }
+        }
+
+        // Parse channel data for story and other fields
+        let storyData: any = null;
+        let thinkForMarketData: any = null;
+        let tippingPointData: string = '';
+        if (businessOverview?.channel) {
+          try {
+            const channelData = JSON.parse(businessOverview.channel);
+            storyData = channelData.story;
+            thinkForMarketData = channelData.thinkForMarket;
+            tippingPointData = channelData.tippingPoint || '';
+          } catch (e) {
+            console.error('Error parsing channel data:', e);
+          }
+        }
+
+        // Parse business overview fields
+        let revenueBreakdown = [];
+        let moat = [];
+        try {
+          if (businessOverview?.revenue_segment) {
+            revenueBreakdown = JSON.parse(businessOverview.revenue_segment);
+          }
+          if (businessOverview?.moat) {
+            moat = JSON.parse(businessOverview.moat);
+          }
+        } catch (e) {
+          console.error('Error parsing business overview fields:', e);
+        }
+
+        // Parse risk assessment
+        const riskAssessment = {
+          keyBusinessRisks: risks.find((r: any) => r.type === 'business')?.description || '',
+          financialRisks: risks.find((r: any) => r.type === 'financial')?.description || '',
+          managementRisks: risks.find((r: any) => r.type === 'management')?.description || '',
+          macroRisks: risks.find((r: any) => r.type === 'macro')?.description || '',
+        };
+
+        const stock: Stock = {
+          id: row.id,
+          symbol: row.symbol,
+          companyName: row.name,
+          currentPrice: row.price || 0,
+          dayChange: 0,
+        };
+
+        // Add business overview if exists
+        if (businessOverview) {
+          stock.businessOverview = {
+            whatTheyDo: businessOverview.business_model || '',
+            customers: businessOverview.customer_segment || '',
+            revenueBreakdown,
+            moat,
+            growthEngine: businessOverview.growth_engine || '',
+          };
+        }
+
+        // Add TAM data if exists
+        if (tamData) {
+          stock.tam = tamData;
+        }
+
+        // Add thinkForMarket if exists
+        if (thinkForMarketData) {
+          stock.thinkForMarket = thinkForMarketData;
+        }
+
+        // Add tippingPoint if exists
+        if (tippingPointData) {
+          stock.tippingPoint = tippingPointData;
+        }
+
+        // Add financials if exists
+        if (financials.length > 0) {
+          stock.financials = financials.map((f: any) => ({
+            period: f.period,
+            revenue: f.revenue || 0,
+            grossProfit: f.revenue - (f.cost_of_revenue || 0),
+            operatingIncome: 0,
+            netIncome: f.net_profit || 0,
+            rdExpense: 0,
+            smExpense: 0,
+            gaExpense: 0,
+            freeCashFlow: 0,
+            sharesOutstanding: f.eps ? (f.net_profit || 0) / f.eps : 0,
+            capex: 0,
+          }));
+        }
+
+        // Add valuation if exists
+        if (valuationData) {
+          stock.valuation = valuationData;
+        }
+
+        // Add story if exists
+        if (storyData) {
+          stock.story = storyData;
+        }
+
+        // Add risk assessment if has any data
+        if (Object.values(riskAssessment).some(v => v)) {
+          stock.riskAssessment = riskAssessment;
+        }
+
+        return stock;
+      });
 
       setStocks(transformedStocks);
     } catch (error) {
@@ -156,13 +292,18 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.log('Updated stock:', id, updatePayload);
 
       // Update business overview if provided
-      if (updatedData.businessOverview) {
-        await updateBusinessOverview(stock.symbol, updatedData.businessOverview);
+      if (updatedData.businessOverview || updatedData.tam || updatedData.thinkForMarket || updatedData.tippingPoint) {
+        await updateBusinessOverview(stock.symbol, {
+          businessOverview: updatedData.businessOverview,
+          tam: updatedData.tam,
+          thinkForMarket: updatedData.thinkForMarket,
+          tippingPoint: updatedData.tippingPoint,
+        });
       }
 
       // Update financials if provided
       if (updatedData.financials) {
-        await updateFinancials(stock.symbol, updatedData.financials);
+        await updateFinancials(stock.symbol, updatedData.financials, updatedData.customMetrics);
       }
 
       // Update valuation if provided
@@ -190,66 +331,138 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error: deleteError } = await (supabase as any)
+      // Check if a record exists
+      const { data: existing } = await (supabase as any)
         .from('business_overviews')
-        .delete()
-        .eq('stock_symbol', symbol);
+        .select('id')
+        .eq('stock_symbol', symbol)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
-      if (deleteError) console.error('Error deleting old business overview:', deleteError);
+      const payload: any = {
+        stock_symbol: symbol,
+        user_id: session.user.id,
+      };
 
-      const { error } = await (supabase as any)
-        .from('business_overviews')
-        .insert([
-          {
-            stock_symbol: symbol,
-            business_model: data.whatTheyDo || '',
-            customer_segment: data.customers || '',
-            revenue_segment: JSON.stringify(data.revenueBreakdown || []),
-            moat: JSON.stringify(data.moat || []),
-            growth_engine: data.growthEngine || '',
-            user_id: session.user.id,
-          }
-        ]);
+      // Add business overview fields if provided
+      if (data.businessOverview) {
+        payload.business_model = data.businessOverview.whatTheyDo || '';
+        payload.customer_segment = data.businessOverview.customers || '';
+        payload.revenue_segment = JSON.stringify(data.businessOverview.revenueBreakdown || []);
+        payload.moat = JSON.stringify(data.businessOverview.moat || []);
+        payload.growth_engine = data.businessOverview.growthEngine || '';
+      }
 
-      if (error) {
-        console.error('Error updating business overview:', error);
+      // Add TAM fields if provided
+      if (data.tam) {
+        payload.tam = JSON.stringify(data.tam);
+      }
+
+      // Add thinkForMarket fields if provided (store in channel for now)
+      if (data.thinkForMarket || data.tippingPoint) {
+        const existingData = existing ? await (supabase as any)
+          .from('business_overviews')
+          .select('channel')
+          .eq('id', existing.id)
+          .single() : { data: null };
+        
+        const channelData = existingData?.data?.channel ? JSON.parse(existingData.data.channel) : {};
+        if (data.thinkForMarket) channelData.thinkForMarket = data.thinkForMarket;
+        if (data.tippingPoint) channelData.tippingPoint = data.tippingPoint;
+        payload.channel = JSON.stringify(channelData);
+      }
+
+      if (existing) {
+        // Update existing record
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .update(payload)
+          .eq('id', existing.id);
+
+        if (error) {
+          console.error('Error updating business overview:', error);
+        } else {
+          console.log('Updated business overview for', symbol);
+        }
       } else {
-        console.log('Updated business overview for', symbol);
+        // Insert new record
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .insert([payload]);
+
+        if (error) {
+          console.error('Error inserting business overview:', error);
+        } else {
+          console.log('Inserted business overview for', symbol);
+        }
       }
     } catch (error) {
       console.error('Exception updating business overview:', error);
     }
   };
 
-  const updateFinancials = async (symbol: string, financials: any[]) => {
+  const updateFinancials = async (symbol: string, financials: any[], customMetrics?: any[]) => {
     if (!session?.user) return;
 
     try {
       const { error: deleteError } = await (supabase as any)
         .from('financials')
         .delete()
-        .eq('stock_symbol', symbol);
+        .eq('stock_symbol', symbol)
+        .eq('user_id', session.user.id);
 
       if (deleteError) console.error('Error deleting old financials:', deleteError);
 
-      const financialRows = financials.map(f => ({
-        stock_symbol: symbol,
-        period: f.period,
-        revenue: f.revenue,
-        cost_of_revenue: f.grossProfit ? f.revenue - f.grossProfit : null,
-        net_profit: f.netIncome,
-        eps: f.netIncome / (f.sharesOutstanding || 1),
-        user_id: session.user.id,
-      }));
+      const financialRows = financials.map(f => {
+        const row: any = {
+          stock_symbol: symbol,
+          period: f.period,
+          revenue: f.revenue || 0,
+          cost_of_revenue: f.grossProfit ? f.revenue - f.grossProfit : (f.cost_of_revenue || 0),
+          net_profit: f.netIncome || 0,
+          eps: f.sharesOutstanding ? (f.netIncome || 0) / f.sharesOutstanding : 0,
+          user_id: session.user.id,
+        };
+        return row;
+      });
 
-      const { error } = await (supabase as any)
-        .from('financials')
-        .insert(financialRows);
+      if (financialRows.length > 0) {
+        const { error } = await (supabase as any)
+          .from('financials')
+          .insert(financialRows);
 
-      if (error) {
-        console.error('Error updating financials:', error);
-      } else {
-        console.log('Updated financials for', symbol);
+        if (error) {
+          console.error('Error updating financials:', error);
+        } else {
+          console.log('Updated financials for', symbol);
+        }
+      }
+
+      // Store custom metrics in business_overviews (in a new field or existing one)
+      if (customMetrics && customMetrics.length > 0) {
+        const { data: existing } = await (supabase as any)
+          .from('business_overviews')
+          .select('id')
+          .eq('stock_symbol', symbol)
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        const payload = {
+          stock_symbol: symbol,
+          user_id: session.user.id,
+          growth_engine: JSON.stringify({ customMetrics }), // Store in growth_engine as JSON for now
+        };
+
+        if (existing) {
+          await (supabase as any)
+            .from('business_overviews')
+            .update(payload)
+            .eq('id', existing.id);
+        } else {
+          await (supabase as any)
+            .from('business_overviews')
+            .insert([payload]);
+        }
       }
     } catch (error) {
       console.error('Exception updating financials:', error);
@@ -260,20 +473,53 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error } = await (supabase as any)
+      const { data: existing } = await (supabase as any)
         .from('business_overviews')
-        .upsert([
-          {
-            stock_symbol: symbol,
-            tam: JSON.stringify(valuation),
-            user_id: session.user.id,
-          }
-        ], { onConflict: 'stock_symbol' });
+        .select('id, tam')
+        .eq('stock_symbol', symbol)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error updating valuation:', error);
+      // Parse existing tam field to preserve TAM data if it exists
+      let tamData: any = {};
+      if (existing?.tam) {
+        try {
+          tamData = JSON.parse(existing.tam);
+        } catch (e) {
+          console.error('Error parsing existing TAM data:', e);
+        }
+      }
+
+      // Merge valuation data into tam field
+      tamData.valuation = valuation;
+
+      const payload = {
+        stock_symbol: symbol,
+        user_id: session.user.id,
+        tam: JSON.stringify(tamData),
+      };
+
+      if (existing) {
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .update(payload)
+          .eq('id', existing.id);
+
+        if (error) {
+          console.error('Error updating valuation:', error);
+        } else {
+          console.log('Updated valuation for', symbol);
+        }
       } else {
-        console.log('Updated valuation for', symbol);
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .insert([payload]);
+
+        if (error) {
+          console.error('Error inserting valuation:', error);
+        } else {
+          console.log('Inserted valuation for', symbol);
+        }
       }
     } catch (error) {
       console.error('Exception updating valuation:', error);
@@ -284,20 +530,53 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!session?.user) return;
 
     try {
-      const { error } = await (supabase as any)
+      const { data: existing } = await (supabase as any)
         .from('business_overviews')
-        .upsert([
-          {
-            stock_symbol: symbol,
-            channel: JSON.stringify(story),
-            user_id: session.user.id,
-          }
-        ], { onConflict: 'stock_symbol' });
+        .select('id, channel')
+        .eq('stock_symbol', symbol)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error updating story:', error);
+      // Parse existing channel field to preserve other data if it exists
+      let channelData: any = {};
+      if (existing?.channel) {
+        try {
+          channelData = JSON.parse(existing.channel);
+        } catch (e) {
+          console.error('Error parsing existing channel data:', e);
+        }
+      }
+
+      // Merge story data into channel field
+      channelData.story = story;
+
+      const payload = {
+        stock_symbol: symbol,
+        user_id: session.user.id,
+        channel: JSON.stringify(channelData),
+      };
+
+      if (existing) {
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .update(payload)
+          .eq('id', existing.id);
+
+        if (error) {
+          console.error('Error updating story:', error);
+        } else {
+          console.log('Updated story for', symbol);
+        }
       } else {
-        console.log('Updated story for', symbol);
+        const { error } = await (supabase as any)
+          .from('business_overviews')
+          .insert([payload]);
+
+        if (error) {
+          console.error('Error inserting story:', error);
+        } else {
+          console.log('Inserted story for', symbol);
+        }
       }
     } catch (error) {
       console.error('Exception updating story:', error);
