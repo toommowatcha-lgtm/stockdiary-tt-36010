@@ -16,7 +16,7 @@ const CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--c
 const MOAT_POWERS = [
   "Scale Economies",
   "Network Economies",
-  "Counter Positioning",
+  "Counter-positioning",
   "Switching Costs",
   "Branding",
   "Cornered Resource",
@@ -35,7 +35,7 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({ stock }) => 
     whatTheyDo: stock.businessOverview?.whatTheyDo || "",
     customers: stock.businessOverview?.customers || "",
     revenueBreakdown: stock.businessOverview?.revenueBreakdown || [],
-    moat: stock.businessOverview?.moat || MOAT_POWERS.map((name) => ({ name, strength: null, explanation: "" })),
+    moat: stock.businessOverview?.moat?.length > 0 ? stock.businessOverview.moat : MOAT_POWERS.map((name) => ({ name, strength: null, explanation: "" })),
     growthEngine: stock.businessOverview?.growthEngine || "",
   });
 
@@ -183,8 +183,8 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({ stock }) => 
           {businessData.moat.some(p => p.strength) && (
             <div className="text-sm text-muted-foreground">
               Score: {businessData.moat.filter(p => p.strength === "High").length * 3 + 
-                      businessData.moat.filter(p => p.strength === "Normal").length * 2 + 
-                      businessData.moat.filter(p => p.strength === "Weak").length} / 21
+                      businessData.moat.filter(p => p.strength === "Moderate").length * 2 + 
+                      businessData.moat.filter(p => p.strength === "Low").length} / 21
             </div>
           )}
         </div>
@@ -198,24 +198,24 @@ export const BusinessOverview: React.FC<BusinessOverviewProps> = ({ stock }) => 
                 onValueChange={(value) => {
                   if (!editing) return;
                   const updated = [...businessData.moat];
-                  updated[idx].strength = value as "Weak" | "Normal" | "High" | null;
+                  updated[idx].strength = value as "Low" | "Moderate" | "High" | null;
                   setBusinessData({ ...businessData, moat: updated });
                 }}
                 className="justify-start gap-1"
               >
                 <ToggleGroupItem 
-                  value="Weak" 
+                  value="Low" 
                   className="data-[state=on]:bg-destructive data-[state=on]:text-destructive-foreground"
                   disabled={!editing}
                 >
-                  Weak
+                  Low
                 </ToggleGroupItem>
                 <ToggleGroupItem 
-                  value="Normal" 
+                  value="Moderate" 
                   className="data-[state=on]:bg-yellow-500 data-[state=on]:text-yellow-950"
                   disabled={!editing}
                 >
-                  Normal
+                  Moderate
                 </ToggleGroupItem>
                 <ToggleGroupItem 
                   value="High" 

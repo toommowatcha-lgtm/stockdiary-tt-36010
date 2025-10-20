@@ -37,7 +37,7 @@ export interface RevenueSegment {
 
 export interface MoatPower {
   name: string;
-  strength: "Weak" | "Normal" | "High" | null;
+  strength: "Low" | "Moderate" | "High" | null;
   explanation?: string;
 }
 
