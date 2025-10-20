@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -118,8 +118,6 @@ export default function Watchlist() {
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left p-4 font-semibold">Symbol</th>
                 <th className="text-left p-4 font-semibold">Company Name</th>
-                <th className="text-right p-4 font-semibold">Current Price</th>
-                <th className="text-right p-4 font-semibold">1D Change</th>
               </tr>
             </thead>
             <tbody>
@@ -133,26 +131,6 @@ export default function Watchlist() {
                     <div className="font-bold text-primary">{stock.symbol}</div>
                   </td>
                   <td className="p-4">{stock.companyName}</td>
-                  <td className="p-4 text-right font-mono">
-                    ${stock.currentPrice.toFixed(2)}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div
-                      className={`flex items-center justify-end gap-1 ${
-                        stock.dayChange >= 0 ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {stock.dayChange >= 0 ? (
-                        <TrendingUp className="h-4 w-4" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4" />
-                      )}
-                      <span className="font-semibold">
-                        {stock.dayChange >= 0 ? "+" : ""}
-                        {stock.dayChange.toFixed(2)}%
-                      </span>
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>

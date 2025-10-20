@@ -42,7 +42,7 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
   const { updateStock } = useStocks();
   const [viewMode, setViewMode] = useState<"quarterly" | "annual">("quarterly");
   const [editing, setEditing] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["revenue", "netIncome"]);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["revenue"]);
   const [showAddMetric, setShowAddMetric] = useState(false);
   const [newMetricLabel, setNewMetricLabel] = useState("");
 
@@ -215,9 +215,6 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
 
   const defaultMetrics = [
     { key: "revenue", label: "Revenue", color: "hsl(var(--chart-1))" },
-    { key: "grossProfit", label: "Gross Profit", color: "hsl(var(--chart-2))" },
-    { key: "netIncome", label: "Net Income", color: "hsl(var(--chart-3))" },
-    { key: "freeCashFlow", label: "Free Cash Flow", color: "hsl(var(--chart-4))" },
   ];
 
   const allMetrics = [...defaultMetrics, ...customMetrics];
