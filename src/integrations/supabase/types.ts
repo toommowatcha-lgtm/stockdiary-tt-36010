@@ -14,7 +14,183 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      business_overviews: {
+        Row: {
+          business_model: string | null
+          channel: string | null
+          created_at: string | null
+          custom_metrics: Json | null
+          customer_segment: string | null
+          growth_engine: string | null
+          id: string
+          moat: string | null
+          revenue_segment: string | null
+          stock_symbol: string
+          tam: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          business_model?: string | null
+          channel?: string | null
+          created_at?: string | null
+          custom_metrics?: Json | null
+          customer_segment?: string | null
+          growth_engine?: string | null
+          id?: string
+          moat?: string | null
+          revenue_segment?: string | null
+          stock_symbol: string
+          tam?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          business_model?: string | null
+          channel?: string | null
+          created_at?: string | null
+          custom_metrics?: Json | null
+          customer_segment?: string | null
+          growth_engine?: string | null
+          id?: string
+          moat?: string | null
+          revenue_segment?: string | null
+          stock_symbol?: string
+          tam?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_overviews_stock_symbol_fkey"
+            columns: ["stock_symbol"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["symbol"]
+          },
+        ]
+      }
+      financials: {
+        Row: {
+          cost_of_revenue: number | null
+          created_at: string | null
+          custom_data: Json | null
+          eps: number | null
+          id: string
+          net_profit: number | null
+          period: string | null
+          revenue: number | null
+          stock_symbol: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cost_of_revenue?: number | null
+          created_at?: string | null
+          custom_data?: Json | null
+          eps?: number | null
+          id?: string
+          net_profit?: number | null
+          period?: string | null
+          revenue?: number | null
+          stock_symbol: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cost_of_revenue?: number | null
+          created_at?: string | null
+          custom_data?: Json | null
+          eps?: number | null
+          id?: string
+          net_profit?: number | null
+          period?: string | null
+          revenue?: number | null
+          stock_symbol?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financials_stock_symbol_fkey"
+            columns: ["stock_symbol"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["symbol"]
+          },
+        ]
+      }
+      risks: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          stock_symbol: string
+          type: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          stock_symbol: string
+          type: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          stock_symbol?: string
+          type?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risks_stock_symbol_fkey"
+            columns: ["stock_symbol"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["symbol"]
+          },
+        ]
+      }
+      stocks: {
+        Row: {
+          created_at: string | null
+          id: string
+          market: string | null
+          name: string
+          price: number | null
+          symbol: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          market?: string | null
+          name: string
+          price?: number | null
+          symbol: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          market?: string | null
+          name?: string
+          price?: number | null
+          symbol?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

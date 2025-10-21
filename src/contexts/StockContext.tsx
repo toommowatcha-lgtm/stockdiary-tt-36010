@@ -75,6 +75,18 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const financials = financialsData.data?.filter((f: any) => f.stock_symbol === row.symbol) || [];
         const risks = risksData.data?.filter((r: any) => r.stock_symbol === row.symbol) || [];
 
+        // Parse custom metrics from business_overviews
+        let customMetrics: any[] = [];
+        try {
+          if (businessOverview?.custom_metrics) {
+            customMetrics = typeof businessOverview.custom_metrics === 'string' 
+              ? JSON.parse(businessOverview.custom_metrics)
+              : businessOverview.custom_metrics;
+          }
+        } catch (e) {
+          console.error('Error parsing custom metrics:', e);
+        }
+
         // Parse TAM data if exists
         let tamData: any = null;
         let valuationData: any = null;
@@ -138,12 +150,26 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Add business overview if exists
         if (businessOverview) {
+          // Handle growth_engine field - check if it contains old JSON data
+          let growthEngineText = businessOverview.growth_engine || '';
+          try {
+            // If growth_engine contains JSON with customMetrics (old format), extract text or clear it
+            const parsed = JSON.parse(growthEngineText);
+            if (parsed && typeof parsed === 'object' && parsed.customMetrics) {
+              // Old format detected - clear it since custom metrics are now in separate column
+              growthEngineText = '';
+              console.log('Cleared old custom metrics data from growth_engine for', row.symbol);
+            }
+          } catch (e) {
+            // Not JSON, it's normal text - keep as is
+          }
+
           stock.businessOverview = {
             whatTheyDo: businessOverview.business_model || '',
             customers: businessOverview.customer_segment || '',
             revenueBreakdown,
             moat,
-            growthEngine: businessOverview.growth_engine || '',
+            growthEngine: growthEngineText,
           };
         }
 
@@ -164,19 +190,40 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Add financials if exists
         if (financials.length > 0) {
-          stock.financials = financials.map((f: any) => ({
-            period: f.period,
-            revenue: f.revenue || 0,
-            grossProfit: f.revenue - (f.cost_of_revenue || 0),
-            operatingIncome: 0,
-            netIncome: f.net_profit || 0,
-            rdExpense: 0,
-            smExpense: 0,
-            gaExpense: 0,
-            freeCashFlow: 0,
-            sharesOutstanding: f.eps ? (f.net_profit || 0) / f.eps : 0,
-            capex: 0,
-          }));
+          stock.financials = financials.map((f: any) => {
+            const financialData: any = {
+              period: f.period,
+              revenue: f.revenue || 0,
+              grossProfit: f.revenue - (f.cost_of_revenue || 0),
+              operatingIncome: 0,
+              netIncome: f.net_profit || 0,
+              rdExpense: 0,
+              smExpense: 0,
+              gaExpense: 0,
+              freeCashFlow: 0,
+              sharesOutstanding: f.eps ? (f.net_profit || 0) / f.eps : 0,
+              capex: 0,
+            };
+
+            // Add custom metric values from custom_data column
+            if (f.custom_data) {
+              try {
+                const customData = typeof f.custom_data === 'string' 
+                  ? JSON.parse(f.custom_data)
+                  : f.custom_data;
+                Object.assign(financialData, customData);
+              } catch (e) {
+                console.error('Error parsing custom data:', e);
+              }
+            }
+
+            return financialData;
+          });
+        }
+
+        // Add custom metrics if exists
+        if (customMetrics.length > 0) {
+          stock.customMetrics = customMetrics;
         }
 
         // Add valuation if exists
@@ -413,6 +460,9 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (deleteError) console.error('Error deleting old financials:', deleteError);
 
+      // Get list of custom metric keys
+      const customMetricKeys = customMetrics?.map(m => m.key) || [];
+
       const financialRows = financials.map(f => {
         const row: any = {
           stock_symbol: symbol,
@@ -423,6 +473,20 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           eps: f.sharesOutstanding ? (f.netIncome || 0) / f.sharesOutstanding : 0,
           user_id: session.user.id,
         };
+
+        // Extract custom metric values from financial data
+        const customData: any = {};
+        customMetricKeys.forEach(key => {
+          if (f[key] !== undefined) {
+            customData[key] = f[key];
+          }
+        });
+
+        // Store custom metric values in custom_data column
+        if (Object.keys(customData).length > 0) {
+          row.custom_data = customData;
+        }
+
         return row;
       });
 
@@ -438,8 +502,8 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
 
-      // Store custom metrics in business_overviews (in a new field or existing one)
-      if (customMetrics && customMetrics.length > 0) {
+      // Store custom metrics metadata in business_overviews.custom_metrics column
+      if (customMetrics !== undefined) {
         const { data: existing } = await (supabase as any)
           .from('business_overviews')
           .select('id')
@@ -450,7 +514,7 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const payload = {
           stock_symbol: symbol,
           user_id: session.user.id,
-          growth_engine: JSON.stringify({ customMetrics }), // Store in growth_engine as JSON for now
+          custom_metrics: customMetrics,
         };
 
         if (existing) {
@@ -458,10 +522,12 @@ export const StockProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .from('business_overviews')
             .update(payload)
             .eq('id', existing.id);
+          console.log('Updated custom metrics for', symbol);
         } else {
           await (supabase as any)
             .from('business_overviews')
             .insert([payload]);
+          console.log('Inserted custom metrics for', symbol);
         }
       }
     } catch (error) {
