@@ -51,15 +51,6 @@ export interface RiskAssessment {
 export interface FinancialData {
   period: string;
   revenue: number;
-  grossProfit: number;
-  operatingIncome: number;
-  netIncome: number;
-  rdExpense: number;
-  smExpense: number;
-  gaExpense: number;
-  freeCashFlow: number;
-  sharesOutstanding: number;
-  capex: number;
   [key: string]: number | string;
 }
 

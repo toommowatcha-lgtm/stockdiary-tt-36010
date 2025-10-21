@@ -47,7 +47,7 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
   const [newMetricLabel, setNewMetricLabel] = useState("");
 
   const defaultFinancials: FinancialData[] = [
-    { period: "Q1 2024", revenue: 0, grossProfit: 0, operatingIncome: 0, netIncome: 0, rdExpense: 0, smExpense: 0, gaExpense: 0, freeCashFlow: 0, sharesOutstanding: 0, capex: 0 },
+    { period: "Q1 2024", revenue: 0 },
   ];
 
   const [financials, setFinancials] = useState<FinancialData[]>(stock.financials || defaultFinancials);
@@ -57,15 +57,6 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
 
   const allFinancialKeys = useMemo(() => [
     "revenue",
-    "grossProfit",
-    "operatingIncome",
-    "netIncome",
-    "rdExpense",
-    "smExpense",
-    "gaExpense",
-    "freeCashFlow",
-    "capex",
-    "sharesOutstanding",
     ...customMetrics.map(m => m.key),
   ], [customMetrics]);
 
@@ -83,14 +74,10 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
     const annualData = Object.entries(yearMap)
       .filter(([_, quarters]) => quarters.length === 4)
       .map(([year, quarters]) => {
-        const annual: FinancialData = { period: `FY ${year}`, revenue: 0, grossProfit: 0, operatingIncome: 0, netIncome: 0, rdExpense: 0, smExpense: 0, gaExpense: 0, freeCashFlow: 0, sharesOutstanding: 0, capex: 0 };
+        const annual: FinancialData = { period: `FY ${year}`, revenue: 0 };
         
         allFinancialKeys.forEach(key => {
-          if (key === "sharesOutstanding") {
-            annual[key] = quarters[quarters.length - 1][key] as number || 0;
-          } else {
-            annual[key] = quarters.reduce((sum, q) => sum + ((q[key] as number) || 0), 0);
-          }
+          annual[key] = quarters.reduce((sum, q) => sum + ((q[key] as number) || 0), 0);
         });
         
         return annual;
@@ -113,13 +100,7 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
     const revenueGrowth = previous.revenue ? 
       (((latest.revenue - previous.revenue) / previous.revenue) * 100) : 0;
     
-    const netProfitMargin = latest.revenue ? 
-      ((latest.netIncome / latest.revenue) * 100) : 0;
-    
-    const fcfMargin = latest.revenue ? 
-      ((latest.freeCashFlow / latest.revenue) * 100) : 0;
-    
-    return { revenueGrowth, netProfitMargin, fcfMargin };
+    return { revenueGrowth };
   }, [displayData]);
 
   // Auto-save functionality
@@ -150,9 +131,7 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
     
     const newPeriod: FinancialData = {
       period: `${newQuarter} ${newYear}`,
-      revenue: 0, grossProfit: 0, operatingIncome: 0, netIncome: 0,
-      rdExpense: 0, smExpense: 0, gaExpense: 0, freeCashFlow: 0,
-      sharesOutstanding: 0, capex: 0,
+      revenue: 0,
     };
     
     customMetrics.forEach(m => {
@@ -266,23 +245,11 @@ export const Financials: React.FC<FinancialsProps> = ({ stock }) => {
       </div>
 
       {kpis && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <Card className="p-4 bg-card border-border">
             <div className="text-sm text-muted-foreground mb-1">Revenue Growth (YoY)</div>
             <div className={`text-2xl font-bold ${kpis.revenueGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
               {kpis.revenueGrowth >= 0 ? '+' : ''}{kpis.revenueGrowth.toFixed(1)}%
-            </div>
-          </Card>
-          <Card className="p-4 bg-card border-border">
-            <div className="text-sm text-muted-foreground mb-1">Net Profit Margin</div>
-            <div className="text-2xl font-bold text-foreground">
-              {kpis.netProfitMargin.toFixed(1)}%
-            </div>
-          </Card>
-          <Card className="p-4 bg-card border-border">
-            <div className="text-sm text-muted-foreground mb-1">Free Cash Flow Margin</div>
-            <div className="text-2xl font-bold text-foreground">
-              {kpis.fcfMargin.toFixed(1)}%
             </div>
           </Card>
         </div>
